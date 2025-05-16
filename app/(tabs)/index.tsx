@@ -1,74 +1,97 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { Image, View, Text, ScrollView, ActivityIndicator, FlatList } from "react-native";
+import { Link } from "expo-router";
+import { images } from "@/constants/images";
+import { icons } from "@/constants/icons";
+import SearchBar from "@/components/SearchBar";
+import { useRouter } from "expo-router";
+import useFetch from "@/services/useFetch";
+import { fetchMovies } from "@/services/api";
+import MovieCard from "@/components/MovieCard";
+import { getTrendingMovies } from "@/services/appwrite";
+import TrendingCard from "@/components/TrendingCard";
+import { useColorContext } from "@/context/DarkModeContext"; // Import color context
+import { useLanguage } from "@/context/LanguageContext";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function Index() {
+  const router = useRouter();
+  const { darkMode } = useColorContext(); // Get dark mode status from color context
+  const { selectedLanguage } = useLanguage(); // Get selected language from context
 
-export default function HomeScreen() {
+  const {
+    data: trendingMovies,
+    loading: trendingMoviesLoading,
+    error: trendingMoviesError,
+  } = useFetch(getTrendingMovies);
+
+  const {
+    data: movies,
+    loading: moviesLoading,
+    error: moviesError,
+  } = useFetch(() => fetchMovies({ query: '', language: selectedLanguage }));
+
+  // Dynamic styling based on dark mode
+  const backgroundColor = darkMode ? '#121212' : '#ffffff';
+  const textColor = darkMode ? '#ffffff' : '#000000';
+  const secondaryText = darkMode ? '#aaaaaa' : '#444444';
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={{ flex: 1, backgroundColor }}>
+      <Image source={images.bg} style={{ flex: 1, position: 'absolute', width: '100%', zIndex: 0 }} />
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 20 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ minHeight: "100%", paddingBottom: 10 }}
+      >
+        <Image source={icons.logo} style={{ width: 48, height: 40, marginTop: 20, marginBottom: 20, alignSelf: 'center' }} />
+
+        {moviesLoading || trendingMoviesLoading ? (
+          <ActivityIndicator size="large" color="#0000ff" style={{ marginTop: 20, alignSelf: 'center' }} />
+        ) : moviesError || trendingMoviesError ? (
+          <Text style={{ color: 'red', textAlign: 'center' }}>Error: {moviesError?.message || trendingMoviesError?.message}</Text>
+        ) : (
+          <View style={{ flex: 1, marginTop: 20 }}>
+            <SearchBar
+              onPress={() => router.push("/search")}
+              placeholder="Search for a Movie"
+            />
+
+            {trendingMovies && (
+              <View style={{ marginTop: 30 }}>
+                <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Trending Movies</Text>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={trendingMovies}
+                  contentContainerStyle={{
+                    gap: 26,
+                  }}
+                  renderItem={({ item, index }) => (
+                    <TrendingCard movie={item} index={index} />
+                  )}
+                  keyExtractor={(item) => item.movie_id.toString()}
+                  ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+                />
+              </View>
+            )}
+
+            <>
+              <Text style={{ color: textColor, fontSize: 18, fontWeight: 'bold', marginTop: 30, marginBottom: 10 }}>Latest Movies</Text>
+
+              <FlatList
+                data={movies}
+                renderItem={({ item }) => (
+                  <MovieCard {...item} />
+                )}
+                keyExtractor={(item) => item.id.toString()}
+                numColumns={3}
+                columnWrapperStyle={{ justifyContent: 'flex-start', gap: 20, paddingRight: 5, marginBottom: 10 }}
+                style={{ marginTop: 10, paddingBottom: 30 }}
+                scrollEnabled={false}
+              />
+            </>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
